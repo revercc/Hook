@@ -1,10 +1,10 @@
 //Inlinehook
-#include <Windows.h>	
+#include <Windows.h>
 #include <TlHelp32.h>
 
 BYTE		bOldCode[0x5];	//Hook前的字节码
 int WINAPI My_MessageBox(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType);
-int	SetInlineHook(HMODULE hModule, PVOID FuncAddress, DWORD * pChangeAddress);
+int	SetInlineHook(HMODULE hModule, PVOID FuncAddress, DWORD* pChangeAddress);
 int DeleteHook(DWORD ChangeAddress);
 
 int main()
@@ -66,7 +66,6 @@ int	SetInlineHook(HMODULE hModule, PVOID FuncAddress, DWORD * pChangeAddress)
 			CloseHandle(hThread);
 		}
 	} while (TRUE == Thread32Next(hSnapshot, &stThreadEntry32));
-
 	CloseHandle(hSnapshot);
 
 	WriteProcessMemory(hProcess,LPVOID(*pChangeAddress), WriteData, 5, NULL);	
@@ -88,12 +87,6 @@ int	SetInlineHook(HMODULE hModule, PVOID FuncAddress, DWORD * pChangeAddress)
 	return TRUE;
 }
 
-	//向Hook位置写入jmp指令
-	BYTE		WriteData[5] = { 0 };		//需要写入的jmp指令
-	DWORD	dwOldProtect = 0;			//内存原来的属性
-	WriteData[0] = 0xE9;
-	((DWORD *)(WriteData + 1))[0] = (DWORD)FuncAddress - (*pChangeAddress) - 5;	
-	VirtualProtect(LPVOID(*pChangeAddress), 0x5, PAGE_EXECUTE_READWRITE, &dwOldProtect);
 
 int DeleteHook(DWORD ChangeAddress)
 {
@@ -104,17 +97,43 @@ int DeleteHook(DWORD ChangeAddress)
 	//还原hook的指令
 	DWORD	dwOldProtect = 0;			//内存原来的属性
 	VirtualProtect(LPVOID(ChangeAddress), 0x5, PAGE_EXECUTE_READWRITE, &dwOldProtect);
-	WriteProcessMemory(hProcess, LPVOID(ChangeAddress), bOldCode, 0x5, NULL);
-	VirtualProtect(LPVOID(ChangeAddress), 0x5, dwOldProtect, &dwOldProtect);
 
-	return 0;
-}
+	//HOOK操作的线程安全，暂停其他无关线程
+	HANDLE hThread = NULL;
+	THREADENTRY32 stThreadEntry32 = { 0 };
+	stThreadEntry32.dwSize = sizeof(THREADENTRY32);
+	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, GetCurrentProcessId());
+	Thread32First(hSnapshot, &stThreadEntry32);
+	do {
+		if (stThreadEntry32.th32ThreadID != GetCurrentThreadId())
+		{
+			hThread = OpenThread(THREAD_ALL_ACCESS, FALSE, stThreadEntry32.th32ThreadID);
+			SuspendThread(hThread);
+			CloseHandle(hThread);
+		}
+	} while (TRUE == Thread32Next(hSnapshot, &stThreadEntry32));
+	CloseHandle(hSnapshot);
+
+	WriteProcessMemory(hProcess, LPVOID(ChangeAddress), bOldCode, 0x5, NULL);
+	
+	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, GetCurrentProcessId());
+	Thread32First(hSnapshot, &stThreadEntry32);
+	do {
+		if (stThreadEntry32.th32ThreadID != GetCurrentThreadId())
+		{
+			hThread = OpenThread(THREAD_ALL_ACCESS, FALSE, stThreadEntry32.th32ThreadID);
+			ResumeThread(hThread);
+			CloseHandle(hThread);
+		}
+	} while (TRUE == Thread32Next(hSnapshot, &stThreadEntry32));
+	CloseHandle(hSnapshot);
+	VirtualProtect(LPVOID(ChangeAddress), 0x5, dwOldProtect, &dwOldProtect);
 
 	return TRUE;
 }
 
 
-int DeleteHook(DWORD ChangeAddress)
+int WINAPI My_MessageBox(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType)
 {
 
 	int		iRet = 0;
