@@ -66,10 +66,11 @@ int	SetInlineHook(HMODULE hModule, PVOID FuncAddress, DWORD * pChangeAddress)
 			CloseHandle(hThread);
 		}
 	} while (TRUE == Thread32Next(hSnapshot, &stThreadEntry32));
+
 	CloseHandle(hSnapshot);
-	
-	WriteProcessMemory(hProcess,LPVOID(*pChangeAddress), WriteData, 5, NULL);		
-	
+
+	WriteProcessMemory(hProcess,LPVOID(*pChangeAddress), WriteData, 5, NULL);	
+
 	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, GetCurrentProcessId());
 	Thread32First(hSnapshot, &stThreadEntry32);
 	do {
