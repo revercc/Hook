@@ -88,6 +88,12 @@ int	SetInlineHook(HMODULE hModule, PVOID FuncAddress, DWORD * pChangeAddress)
 	return TRUE;
 }
 
+	//向Hook位置写入jmp指令
+	BYTE		WriteData[5] = { 0 };		//需要写入的jmp指令
+	DWORD	dwOldProtect = 0;			//内存原来的属性
+	WriteData[0] = 0xE9;
+	((DWORD *)(WriteData + 1))[0] = (DWORD)FuncAddress - (*pChangeAddress) - 5;	
+	VirtualProtect(LPVOID(*pChangeAddress), 0x5, PAGE_EXECUTE_READWRITE, &dwOldProtect);
 
 int DeleteHook(DWORD ChangeAddress)
 {
@@ -104,10 +110,11 @@ int DeleteHook(DWORD ChangeAddress)
 	return 0;
 }
 
+	return TRUE;
+}
 
 
-//Detour函数
-int WINAPI My_MessageBox(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType)
+int DeleteHook(DWORD ChangeAddress)
 {
 
 	int		iRet = 0;
