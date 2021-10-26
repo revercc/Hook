@@ -120,7 +120,6 @@ int WINAPI My_MessageBox(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType)
 		pushad
 		pushfd
 	}
-
 	//先还原hook的函数，再调用
 	DeleteHook(ChangeAddress);
 	//恢复环境
@@ -134,5 +133,4 @@ int WINAPI My_MessageBox(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType)
 	SetInlineHook(hModule, My_MessageBox, &ChangeAddress);
 
 	return iRet;
-
 }
